@@ -9,7 +9,7 @@ import os
 DATA_ROOT = "D:/dataset/chbmit/rawData"
 
 # 受试者选择
-SUBJECT = "chb10"
+SUBJECT = "chb12"
 SUBJECT_PATH = os.path.join(DATA_ROOT, SUBJECT)
 
 # 输出目录
