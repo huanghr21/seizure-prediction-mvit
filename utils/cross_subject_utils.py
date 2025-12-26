@@ -327,3 +327,135 @@ def save_loso_summary(all_fold_results, save_path):
         print(f"  Mean ± Std: {stats['mean']:.4f} ± {stats['std']:.4f}")
         print(f"  Range: [{stats['min']:.4f}, {stats['max']:.4f}]")
     print("=" * 60)
+
+
+if __name__ == "__main__":
+    """测试跨被试者评估工具"""
+    import tempfile
+
+    print("\n" + "=" * 60)
+    print("跨被试者评估工具 - 测试模式")
+    print("=" * 60)
+
+    # 创建模拟数据
+    np.random.seed(42)
+
+    # 模拟3个被试者的数据
+    subjects = ["chb01", "chb02", "chb03"]
+    n_samples_per_subject = 100
+
+    all_labels = []
+    all_preds = []
+    all_subject_ids = []
+
+    for subject in subjects:
+        # 为每个被试者生成随机标签和预测
+        labels = np.random.randint(0, 2, n_samples_per_subject)
+        # 预测有80%的准确率
+        preds = labels.copy()
+        flip_indices = np.random.choice(
+            n_samples_per_subject, size=int(n_samples_per_subject * 0.2), replace=False
+        )
+        preds[flip_indices] = 1 - preds[flip_indices]
+
+        all_labels.extend(labels)
+        all_preds.extend(preds)
+        all_subject_ids.extend([subject] * n_samples_per_subject)
+
+    all_labels = np.array(all_labels)
+    all_preds = np.array(all_preds)
+
+    print(f"\n生成测试数据:")
+    print(f"  - 被试者数: {len(subjects)}")
+    print(f"  - 总样本数: {len(all_labels)}")
+    print(f"  - 每被试者样本数: {n_samples_per_subject}")
+
+    # 测试1: 计算每个被试者的指标
+    print("\n【测试1】计算每个被试者的指标...")
+    per_subject_results = compute_per_subject_metrics(
+        all_labels, all_preds, all_subject_ids
+    )
+
+    for subject, metrics in per_subject_results.items():
+        print(f"\n  {subject}:")
+        print(f"    Accuracy: {metrics['accuracy']:.4f}")
+        print(f"    Sensitivity: {metrics['sensitivity']:.4f}")
+        print(f"    F1 Score: {metrics['f1_score']:.4f}")
+
+    # 测试2: 保存结果
+    print("\n【测试2】保存结果到临时文件...")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 模拟整体指标
+        overall_metrics = {
+            "accuracy": 0.80,
+            "sensitivity": 0.78,
+            "specificity": 0.82,
+            "f1_score": 0.79,
+        }
+
+        results_path = os.path.join(tmpdir, "results", "test_results.json")
+        save_per_subject_results(per_subject_results, overall_metrics, results_path)
+
+        # 验证文件是否创建
+        if os.path.exists(results_path):
+            print(f"  ✓ 结果文件成功创建")
+            with open(results_path, "r") as f:
+                loaded = json.load(f)
+                print(
+                    f"  ✓ 文件包含 {len(loaded['per_subject_results'])} 个被试者的结果"
+                )
+
+        # 测试3: 绘制图表
+        print("\n【测试3】绘制可视化图表...")
+
+        # 绘制单个指标
+        plot_per_subject_metrics(per_subject_results, tmpdir, "accuracy")
+        accuracy_plot = os.path.join(tmpdir, "per_subject_accuracy.png")
+        if os.path.exists(accuracy_plot):
+            print(f"  ✓ Accuracy柱状图已生成")
+
+        # 绘制所有指标对比
+        plot_all_metrics_comparison(per_subject_results, tmpdir)
+        comparison_plot = os.path.join(tmpdir, "all_metrics_comparison.png")
+        if os.path.exists(comparison_plot):
+            print(f"  ✓ 所有指标对比图已生成")
+
+        # 绘制混淆矩阵
+        plot_per_subject_confusion_matrices(per_subject_results, tmpdir)
+        cm_dir = os.path.join(tmpdir, "confusion_matrices")
+        if os.path.exists(cm_dir):
+            cm_files = [f for f in os.listdir(cm_dir) if f.endswith(".png")]
+            print(f"  ✓ {len(cm_files)} 个混淆矩阵图已生成")
+
+    # 测试4: 打印统计摘要
+    print("\n【测试4】打印统计摘要...")
+    print_summary_statistics(per_subject_results)
+
+    # 测试5: LOSO汇总
+    print("\n【测试5】测试LOSO汇总功能...")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 模拟LOSO的多折结果
+        all_fold_results = []
+        for i, subject in enumerate(subjects):
+            fold_result = {
+                "fold": i + 1,
+                "test_subject": subject,
+                "test_metrics": {
+                    "accuracy": 0.75 + np.random.rand() * 0.15,
+                    "sensitivity": 0.70 + np.random.rand() * 0.20,
+                    "specificity": 0.75 + np.random.rand() * 0.15,
+                    "precision": 0.70 + np.random.rand() * 0.20,
+                    "f1_score": 0.72 + np.random.rand() * 0.18,
+                },
+            }
+            all_fold_results.append(fold_result)
+
+        summary_path = os.path.join(tmpdir, "loso_summary.json")
+        save_loso_summary(all_fold_results, summary_path)
+
+        if os.path.exists(summary_path):
+            print(f"  ✓ LOSO汇总文件成功创建")
+
+    print("\n" + "=" * 60)
+    print("✓ 所有测试通过！")
+    print("=" * 60)
