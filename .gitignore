@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Output files (大型模型文件不上传)
+*.pth
+*.pt
+*.pkl
+*.h5
+
+# Output目录中允许上传结果文件（.json, .png）
+output/**/*.pth
+output/**/*.pt
+output/**/*.pkl
+
+# Data (数据集不上传)
+data/
+dataset/
+datasets/
+rawData/
+*.edf
+*.mat
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+temp/
+tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test files (测试文件可选择不上传)
+test_*.py
+*_test.py

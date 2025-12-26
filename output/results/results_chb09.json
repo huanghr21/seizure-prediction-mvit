@@ -1,0 +1,48 @@
+{
+    "subject": "chb09",
+    "model": "MultiChannelViT",
+    "config": {
+        "n_channels": 23,
+        "window_size": 4,
+        "filter_range": "0.5-48 Hz",
+        "sop": "30.0 min",
+        "sph": "3.0 min",
+        "batch_size": 32,
+        "learning_rate": 1e-05,
+        "num_epochs": 100,
+        "num_layers": 6,
+        "embed_dim": 256,
+        "num_heads": 8
+    },
+    "data": {
+        "train_samples": 1458,
+        "val_samples": 486,
+        "test_samples": 486,
+        "train_preictal": 729,
+        "train_interictal": 729,
+        "val_preictal": 243,
+        "val_interictal": 243,
+        "test_preictal": 243,
+        "test_interictal": 243
+    },
+    "training": {
+        "total_time_minutes": 17.86,
+        "final_train_loss": 0.1984,
+        "final_train_acc": 0.9396,
+        "final_val_loss": 0.1638,
+        "final_val_acc": 0.9568
+    },
+    "metrics": {
+        "sensitivity": 1.0,
+        "specificity": 0.8641975308641975,
+        "accuracy": 0.9320987654320988,
+        "precision": 0.8804347826086957,
+        "f1_score": 0.9364161849710982,
+        "confusion_matrix": {
+            "TN": 210,
+            "FP": 33,
+            "FN": 0,
+            "TP": 243
+        }
+    }
+}

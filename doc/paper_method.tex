@@ -1,0 +1,441 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Deep learning based automatic seizure prediction with EEG time-frequency representation}
+\author{Xingchen Dong$^a$, Landi He$^a$, Haotian Li$^a$, Zhen Liu$^b$, Wei Shang$^b$, Weidong Zhou$^{a,c,*}$}
+\date{}
+\institute{
+$^a$ School of Integrated Circuits, Shandong University, Jinan 250100, PR China \\
+$^b$ Second Hospital of Shandong University, Jinan 250100, PR China \\
+$^c$ Shenzhen Institute of Shandong University, Shenzhen 518057, PR China
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Automatic seizure prediction is crucial for developing a new therapy for patients suffering from medically intractable epilepsy, possessing important clinical application value. In order to solve the problems of overfitting due to the complexity of deep learning based seizure prediction networks and the susceptibility of EEG features to noise contamination, an automatic seizure prediction model based on Stockwell Transform (S-transform) and Multi-Channel Vision Transformer (MViT) is proposed in this work. The time-frequency representation of multi-channel electroencephalography (EEG) signals is obtained by using S-Transform. These time-frequency spectrograms are then compressed and sent into the MViT model for further spatial feature extraction and identification of preictal EEG state. The designed MViT model is lightweight, ensuring efficient feature discriminating ability even with a minimal number of network layers. In view of the persistence of EEG activities, K-of-N strategy is employed to further augment the predictive performance. Experiments on the CHB-MIT database and the SH-SDU clinical database yield segment-based accuracy of 97.57\% and 95.88\% respectively, demonstrating the superiority and potential of the proposed method in seizure prediction.
+\end{abstract}
+
+\textbf{Keywords:} Electroencephalography (EEG); Seizure prediction; Vision transformer; Stockwell transform
+
+\section{Introduction}
+Epilepsy is the most common neurological disease caused by transient abnormal discharge of brain neurons, usually accompanied by loss of awareness or consciousness and disturbances of movement, sensation, mood or mental function\cite{1,2}. More than 1\% of the world population suffers from this chronic neurological disorder. For around 25\% of individuals suffering from epilepsy, seizure remains uncontrollable despite all available therapies \cite{3,4}. Epileptic seizures may induce convulsions, spasms, and loss of consciousness, severely impeding patients' daily life and occupational activities \cite{5}. Therefore, effective automatic seizure prediction can provide novel strategies for the prevention and treatment of epilepsy, and greatly improve the quality of life of people with intractable epilepsy\cite{6}. The electroencephalography (EEG) signal is the most common tool used to monitor, diagnose and manage neurological disorders related to epilepsy \cite{7}. The EEG of epileptic seizures can revel four states of the brain activity, which are the inter-ictal state, pre-ictal state, ictal state and post-ictal state \cite{8}. Unlike seizure detection that identifies ictal state, epileptic seizure prediction relies on the distinguishing of pre-ictal EEG activities. Despite incessant efforts, epileptic seizure prediction continues to pose significant challenges due to the lower variability feature of pre-ictal EEG signals \cite{9}. Therefore, a system capable of accurately predicting seizures is of great significance in clinical applications.
+
+Feature extraction serves as a critical step in seizure prediction, and the extracted EEG features could be categorized into time-domain, frequency-domain, and time–frequency features\cite{10–13}. Compared to time-domain and frequency-domain features, time–frequency features illustrate dynamic changes in both the time and frequency domains of EEG signals, which enhances the feature representation ability of EEG signals and improves prediction or classification performance. Standard methods for extracting time–frequency features from EEG signals include Short-Time Fourier Transform (STFT), Continuous Wavelet Transform (CWT), and Stockwell Transform (S-transform) \cite{14–16}. Wavelet transform is capable of effectively handling non-stationary signals and has been widely applied in various biomedical signal processing tasks \cite{17,18}. Additionally, other signal processing methods were also proposed to handle non-stationary signals, such as Variational Mode Decomposition (VMD) and Hilbert transform\cite{19–23}. Ra et al. used synchroextracting transformation and singular value decomposition (SET-SVD) to improve the time–frequency resolution for seizure prediction and achieved better results than STFT\cite{24}. The S-transform, proposed by Stockwell et al. \cite{25}, is an effective time–frequency method, which has the advantages of both STFT and CWT \cite{26}. By employing an adaptive window size, it overcomes the limitation of fixed window size in STFT, thus enhancing its analytical flexibility. Owing to its lower computational complexity and higher noise resistance, the S-transform is widely adopted in the field of EEG analysis \cite{27–29}.
+
+Once feature extraction is complete, the next vital step is to select an appropriate classifier for classification\cite{30}. Traditional machine learning classifiers primarily comprise Support Vector Machine (SVM), Decision Tree (DT), Random Forest (RF), and Naive Bayes (NB), etc. \cite{31–34}. Those classifiers have been widely applied in the field of biomedical signal processing, such as EEG, Electrocardiogram (ECG), and Electromyogram (EMG) \cite{35–39}. However, due to their low complexity and weak generalization ability, these traditional models might fail to capture complex feature information in EEG signals, resulting in unstable model performance and inaccurate seizure predictions in practical applications. Recent advancements in deep learning have introduced new classifiers such as Convolutional Neural Network (CNN), which is widely utilized in image classification tasks \cite{40–42}, as well as disease detection\cite{43–45}. Owing to its capability to incorporate both local and global information, CNN exhibit superior performance in epileptic seizure prediction compared to traditional classifiers \cite{46–48}. Tripathi et al. used superlet transform (SLT) to extract features and then used a deep convolutional neural network (VGG-19) to classify seizure signals and non-seizure signals \cite{49}. Cimr et al. constructed an 8-layer CNN and promising results were achieved for seizure detection\cite{50}. The convolutional kernels in CNNs are usually fixed, demanding distinct network structures for different scale features. Moreover, for multi-channel EEG data, CNNs may require deeper network structures and more parameters, thus escalating model complexity and computational cost. Hence, a more flexible and efficient model is demanded for epileptic seizure prediction.
+
+The Vision Transformer (ViT) demonstrates exceptional performance in image classification tasks due to its innovative neural network model, which leverages the self-attention mechanism \cite{51}. The ViT draws its inspiration from the successful application of the Transformer model in natural language processing \cite{52,53}. In contrast to traditional CNN, the ViT divides the image into a series of non-overlapping patches and transforms these patches into one-dimensional vectors as model inputs. The self-attention mechanism enables the model to establish long-range dependencies between different positions, capturing global information during image processing \cite{54}. In addition, the ViT exhibits good flexibility, with its ability to process image inputs of varying sizes and adaptability to different tasks and datasets, by controlling the model's complexity and performance through the adjustment of layer numbers and embedding dimensions \cite{55}.
+
+This paper proposes an automatic seizure prediction model based on the ViT, the design of which is inspired by its flexibility and exceptional performance in image classification tasks. The S-transform is applied to the multi-channel EEG signals to obtain time–frequency features for each channel. Then, the compressed multi-channel features are fed into the designed MViT model for feature extraction and identification of pre-ictal state of EEG to predict the impending seizure. The remaining structure of the paper is as follows: The EEG database utilized in this work is detailed in Section 2. The proposed seizure prediction method, which encompasses pre-processing, the MViT model, post-processing, and system evaluation metrics, is elucidated in Section 3. Experimental results are thoroughly presented and analyzed in Section 4. The proposed seizure prediction method is discussed in Section 5, where it is also compared with other seizure prediction techniques. The study is concluded in Section 6.
+
+\section{Scalp EEG database}
+The CHB-MIT scalp EEG database used in this work was collected from Boston Children's Hospital \cite{56}. Signals were sampled at a frequency of 256 Hz with a 16-bit resolution, adhering to the international 10–20 system's EEG electrode positions and naming conventions. The database contains 24 cases from 23 patients, with cases chb21 and chb01 from the same patient. The database comprises a total of 198 seizure events, with approximately 980 h of EEG signals. In this work, EEG data derived from 23 channels were selected, namely FP1-F7, F7-T7, T7-P7, P7-O1, FP1-F3, F3-C3, C3-P3, P3-O1, FP2-F4, F4-C4, C4-P4, P4-O2, FP2-F8, F8-T8, T8-P8, P8-O2, FZ-CZ, CZ-PZ, P7-T7, T7-FT9, FT9-FT10, FT10-T8, and T8-P8. The specific information of the database is shown in Table 1.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Information of CHB-MIT EEG data.}
+  \begin{tabular}{ccccc c}
+    \toprule
+    Patient & Gender & Age & Number of seizures & Number of seizures selected & Duration of recordings (h) \\
+    \midrule
+    1 & F & 11 & 7 & 7 & 40.55 \\
+    2 & M & 11 & 3 & 3 & 35.27 \\
+    3 & F & 14 & 7 & 6 & 38.00 \\
+    4 & M & 22 & 4 & 3 & 156.07 \\
+    5 & F & 7 & 5 & 5 & 39.00 \\
+    6 & F & 1.5 & 10 & 10 & 66.74 \\
+    7 & F & 14.5 & 3 & 3 & 67.05 \\
+    8 & M & 3.5 & 5 & 5 & 20.01 \\
+    9 & F & 10 & 4 & 4 & 67.87 \\
+    10 & M & 3 & 7 & 7 & 50.02 \\
+    11 & F & 12 & 3 & 2 & 34.79 \\
+    12 & F & 2 & 40 & 7 & 23.69 \\
+    13 & F & 3 & 12 & 4 & 33.00 \\
+    14 & F & 9 & 8 & 6 & 26.00 \\
+    15 & M & 16 & 20 & 9 & 40.01 \\
+    16 & F & 7 & 10 & 4 & 19.00 \\
+    17 & F & 12 & 3 & 3 & 21.01 \\
+    18 & F & 18 & 6 & 4 & 35.63 \\
+    19 & F & 19 & 3 & 2 & 29.93 \\
+    20 & F & 6 & 8 & 6 & 27.60 \\
+    21 & F & 13 & 4 & 4 & 32.83 \\
+    22 & F & 9 & 3 & 3 & 31.00 \\
+    23 & F & 6 & 7 & 6 & 26.56 \\
+    24 & $-$ & $-$ & 16 & 0 & 21.30 \\
+    \bottomrule
+    \multicolumn{2}{c}{Total} & $-$ & 198 & 113 & 982.93 \\
+  \end{tabular}
+  \label{tab:chb-mit-info}
+\end{table}
+
+Another EEG database used in this work was obtained from the Second Hospital of Shandong University (SH-SDU), Jinan, China. This database features long-term scalp EEG recordings from 12 patients at a sampling frequency of 500 Hz. Contrasting with the CHB-MIT database, most of the SH-SDU patients were adults who exhibited a higher frequency of seizures during EEG recordings. A total of 18 EEG signal recording channels were designated for all patients, named Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, A1, A2, with A1, A2 being ear electrodes. For the purpose of this study, channels A1 and A2 were excluded and 16 channels were chosen for analysis. This database comprises 111 seizure events, with approximately 145 h of EEG recordings. Detailed information about the SH-SDU database is presented in Table 2.
+
+For the task of seizure prediction, it is required to define the time frame of pre-ictal and post-ictal. The first 30 min of seizure onset was defined as the pre-ictal period, the time 5 min post-seizure termination was defined as the post-ictal period, and the rest of the time was identified as the inter-ictal period \cite{57}, as depicted in Fig. 1.
+
+Pre-ictal data characterized by intervals between two adjacent seizures being less than 20 min were discarded, while pre-ictal data with intervals exceeding 20 min were expanded, a process detailed in the pre-processing section. From the CHB-MIT and SH-SDU databases, 113 and 40 seizure events, respectively, were identified as eligible and selected.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Information of SH-SDU EEG data.}
+  \begin{tabular}{ccccc c}
+    \toprule
+    Patient & Gender & Age & Number of seizures & Number of seizures selected & Duration of recordings (h) \\
+    \midrule
+    1 & F & 28 & 10 & 5 & 12.00 \\
+    2 & F & 28 & 11 & 6 & 23.74 \\
+    3 & M & 53 & 7 & 5 & 11.92 \\
+    4 & M & 79 & 32 & 5 & 12.00 \\
+    5 & M & 8 & 10 & 2 & 6.00 \\
+    6 & F & 38 & 3 & 3 & 6.00 \\
+    7 & M & 34 & 2 & 2 & 6.00 \\
+    8 & M & 61 & 10 & 6 & 16.04 \\
+    9 & M & 78 & 4 & 4 & 15.79 \\
+    10 & M & 71 & 3 & 3 & 12.00 \\
+    11 & M & 64 & 15 & 6 & 18.00 \\
+    12 & M & 66 & 4 & 2 & 6.00 \\
+    \bottomrule
+    \multicolumn{2}{c}{Total} & $-$ & 111 & 49 & 145.49 \\
+  \end{tabular}
+  \label{tab:sh-sdu-info}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig1.pdf}
+  \caption{Definition of pre-ictal, ictal, post-ictal and inter-ictal periods.}
+  \label{fig:period-definition}
+\end{figure}
+
+\section{Method}
+Fig. 2 illustrates the overall framework of the proposed automated seizure prediction method. The method consists of three principal components: pre-processing, classification model, and post-processing. Detailed descriptions of each part are provided in the following sections.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig2.pdf}
+  \caption{Block diagram of proposed Epileptic Seizure Prediction method.}
+  \label{fig:framework}
+\end{figure}
+
+\subsection{Pre-processing}
+\subsubsection{Segmentation}
+The acquisition of EEG data is a time-consuming event for patients with epilepsy, typically involving extended durations ranging from several hours to even multiple days. These data are typically stored in specific files for analysis. In the case of the CHB-MIT database, each case consists of multiple consecutive recorded EEG files. Notably, there may be seconds or even minutes of missing EEG signals between these consecutive recorded EEG files, and these missing gaps may coincide with the pre-ictal period. To account for these missing signals during the pre-ictal period, a recombination method of random segmentation and random combination is proposed. This method involves dividing the time randomly into segments of 1 s, which aligns with the duration of the missing time, followed by their random concatenation. The complementation process of a missing 3 s signal is illustrated in Fig. 3.
+
+Upon the data enhancement, the eligible pre-ictal data were constructed. A non-overlapping 4 s sliding window was then used to split the pre-ictal and inter-ictal data to obtain EEG segments of size $(N, 1024)$, where $N$ is the number of channels.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.6\textwidth]{fig3.pdf}
+  \caption{Reconstruction method of missing signals.}
+  \label{fig:missing-signal-recon}
+\end{figure}
+
+\subsubsection{Stockwell transform}
+The S-transform, which overcomes the limitation of the STFT in adjusting the frequency of the analysis window while also incorporating the multi-resolution analysis of wavelet transform, is considered an effective method for time–frequency analysis of non-stationary signals \cite{15}. The S-transform of a one-dimensional signal $x(t)$ is defined as:
+\[
+S_{X}(\tau, f)=\int_{-\infty}^{+\infty} x(t) w(t-\tau, f) e^{-i 2 \pi f t} d t
+\]
+\[
+w(t-\tau, f)=\frac{|f|}{\sqrt{2 \pi}} e^{\frac{-(t-\tau)^{2} f^{2}}{2}}
+\]
+where $w(t-\tau, f)$ is the Gaussian window function, $\tau$ is the shift factor, $f$ is the frequency, and $i$ is an imaginary unit.
+
+To obtain the energy distribution of the signal in the time–frequency domain, the squared modulus of the S-transform is taken into account. The S-transform spectrogram is given as:
+\[
+|S(\tau, f)|^{2}=S(\tau, f) S^{*}(\tau, f)
+\]
+
+In this study, EEG signals were first divided into segments of 4 s. Then, the S-transform was employed to yield a time–frequency matrix of size (1024, 513), where number 513 corresponds to frequencies from 0 to 128 Hz. As the effective information of the epileptic EEG signal was predominantly distributed below 50 Hz, the 0–48 Hz part of the time–frequency matrix, in an effort to standardize the subsequent calculation, was selected to obtain the (1024,192) time–frequency feature matrix. In order to reduce computational complexity and enhance speed, summing compression was applied to the time–frequency feature matrix. This involves a 32-fold compression in the time dimension and a 6-fold compression in the frequency dimension, thereby resulting in a final feature map of size (32, 32).
+
+Fig. 4 exhibits the time–frequency maps of the pre-ictal and inter-ictal EEG signals obtained by S-transformation. Fig. 5 displays the compressed feature maps of 23 case, each of size (32, 32), where (a) corresponds to inter-ictal feature maps and (b) represents pre-ictal feature maps. It can be distinctly observed that the energy of most inter-ictal EEG signals is concentrated in the low-frequency range, while the energy of most pre-ictal EEG signals is concentrated in the high-frequency range.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig4.pdf}
+  \caption{Pre-ictal and inter-ictal EEG signals and their S-transform spectrograms. (a) and (b) represent the EEG signals in the pre-ictal and inter-ictal periods, respectively, and (c) and (d) are corresponding to the S-transform spectrogram of (a) and (b), respectively.}
+  \label{fig:s-transform-spectro}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig5.pdf}
+  \caption{The compressed feature maps via S-transform of EEG signals derived from 23 subjects. (a) The feature maps for inter-ictal data. (b) The feature maps for pre-ictal data.}
+  \label{fig:compressed-feature-maps}
+\end{figure}
+
+\subsection{Multi-channel vision transformer}
+Introduced by Google in 2017 \cite{54}, the Transformer is a unique neural network structure based on the self-attention mechanism and has seen remarkable success in the domain of natural language processing. The Vision Transformer (ViT) is a deep learning model that leverages the Transformer for visual tasks, demonstrating significant potential in areas such as object detection and image segmentation\cite{58}. As the core part of the ViT model, Transformer Encoder is primarily structured around a multi-head self-attention mechanism. This mechanism essentially includes three parameters: Query, Keys, and Values. These parameters are derived from the multiplication of the input vector with three distinct weight matrices. The scaling factor normalizes the product of Query and Keys, which is then followed by Softmax computation. Finally, the weights are obtained after being multiplied by Values, as per the given formula:
+\[
+Attention(Q, K, V)=Softmax\left(\frac{Q K^{T}}{\sqrt{d_{k}}}\right) V
+\]
+where $Q$ is Query, $K$ is Keys, and $V$ stands for Values, $\sqrt{d_{k}}$ is called the scaling factor.
+
+The ViT segments the input image into small blocks, each of which is then tiled and linearly mapped into a one-dimensional vector. Position vectors are inserted prior to each block vector before computation by the Transformer Encoder, after which the position vectors and each block vector are stitched together. The Transformer Encoder calculation's output is then fed into a multi-layer perceptron to derive the final output result.
+
+In this study, a seizure prediction model based on the MViT model was designed, as shown in Fig. 6. The Transformer Encoder structure is depicted on the right side of the dashed line. Initially, EEG signals are segmented and transformed by the S-transform to obtain time–frequency images. Subsequently, the time–frequency diagram is compressed into a feature diagram of size (32,32), which is then partitioned into four small blocks for transmission to the MViT model. To facilitate subsequent processing, the output results are processed through Softmax layers to ensure that output values lie within the 0 to 1 range. The model consists of 6 layers in depth, and the multi-headed self-attention mechanism employs 8 heads. During the training phase, the Adma optimizer is applied, with a learning rate of 0.00001, batch size of 32, and the maximum number of iterations at 50.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig6.pdf}
+  \caption{The structure of Multi-Channel Vision Transformer model for multi-channel EEG signals. The process for multi-channel EEG spectrograms with the Vision Transformer encoder is described on the left of the dashed line, while on the right of the dashed line depicts the specific structure of a Transformer Encoder.}
+  \label{fig:mvit-structure}
+\end{figure}
+
+\subsection{Post-processing}
+In long-term EEG signals, various types of noise, including electromyography and power line interference, are present, which can potentially lead to isolated false results from the model. These erroneous results can be mitigated via post-processing to improve overall accuracy. In this paper, the K-of-N method \cite{59} was employed to post-process the model output results. Under this method, a result is deemed positive if it comprises more than or equal to K consecutive positive labels within N results. K and N were set to 4 and 9 respectively. Fig. 7 demonstrates the post-processing process following the model output results for a 1 h EEG signal, with the initial 30 min being the inter-ictal period and the latter 30 min being the pre-ictal period.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig7.pdf}
+  \caption{The Post-processing process. (a) The output result of classification network. (b) The model prediction labels. (c) The K-of-N post-processed result.}
+  \label{fig:post-processing}
+\end{figure}
+
+\subsection{Performance evaluation}
+For the segment-based evaluation, a 10-fold cross-validation was utilized to assess the performance of the proposed seizure prediction model in this study. Four performance metrics −sensitivity, specificity, accuracy, and F1 score −were adopted to assess the model performance. The calculation methods for these metrics are as follows:
+\[
+Sensitivity = Recall =\frac{TP}{TP+FN} × 100\%
+\]
+\[
+Specificity =\frac{TN}{TN+FP} × 100\%
+\]
+\[
+Accuracy =\frac{TP+TN}{TP+FN+TN+FP} × 100\%
+\]
+\[
+Precision =\frac{TP}{TP+FP} × 100\%
+\]
+\[
+F1 score =2 × \frac{P × R}{P+R}
+\]
+
+Here, $TP$ (True Positive) represents the number of pre-ictal segments that are accurately detected by the system, $TN$ (True Negative) denotes the number of inter-ictal segments correctly identified by the system, $FP$ (False Positive) is the count of inter-ictal segments misclassified as pre-ictal segments by the system, and $FN$ (False Negative) represents the number of pre-ictal segments misclassified as inter-ictal segments by the system. $P$ stands for Precision, and $R$ denotes Recall.
+
+For the event-based evaluation criteria, defining the Seizure Prediction Horizon (SPH) and the Seizure Onset Period (SOP) is crucial \cite{60}. The SOP refers to the period during which a seizure is anticipated, while the SPH is the timeframe from the prediction alert to the start of the SOP. The SPH, known as the clinical intervention period, refers to when appropriate actions can be taken in response to the seizure \cite{61}. A successful seizure event prediction will be labeled if the seizure occurs within the SOP range, whereas a prediction fails if the seizure occurs outside the SOP range. Fig. 8 represents the four possible prediction scenarios for seizure events: (a) represents the ideal case where the seizure initiation is precisely predicted in the pre-ictal period; (b) represents the situation where the seizure event is correctly predicted; (c) represents the case where the seizure event prediction fails because the seizure time occurs outside the SOP range; and (d) represents the instance where the seizure takes place within the SPH, indicating a prediction error.
+
+In this study, pre-ictal data and inter-ictal data from 1 to 5 seizure events were utilized as the training set, while the remaining data was assigned as the test set. The SPH was set at 3 min, and the SOP was established as 30 min. To mitigate false alarms due to system misjudgments, a regulation was implemented where an alarm is triggered only when the system continuously outputs more than 18 positive labels. The performance of the system was evaluated using three metrics: sensitivity, predictive time, and false prediction rate (FPR). Prediction time was defined as the time interval from the moment the system issues an alarm to the initiation of the seizure.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig8.pdf}
+  \caption{The four possible prediction outcomes for seizure events. (a) and (b) indicate correct predictions of the seizure event. (c) and (d) indicate incorrect predictions of the seizure event.}
+  \label{fig:event-prediction-scenarios}
+\end{figure}
+
+\section{Result}
+The seizure prediction methodology proposed in this study was implemented using PyTorch 1.12.1, Python 3.8, and Matlab R2020a. The experiments were conducted on a computer with a 3.70 GHz AMD Ryzen 5 3400G CPU, 32 GB RAM, and an NVIDIA GeForce RTX2080 GPU.
+
+Table 3 presents the segment-based testing results on the CHB-MIT database, where a sensitivity of over 92\% was achieved for every patient, among which 10 reached 100\% sensitivity. The mean sensitivity was reported as 98.26\%. In terms of specificity, a specificity was achieved above 95\% for the majority of the patients, with only two cases below the 90\% mark. The average specificity was computed as 96.89\%. There were five cases that achieved a 100\% accuracy, with the lowest accuracy at 91.70\%. The average accuracy was observed to be 97.57\%. The F1 score evaluation metric also yielded excellent results, with an average F1 score of 0.9761.
+
+Table 4 illustrates the event-based testing results on the CHB-MIT database, where an 100\% sensitivity was acquired from 21 patients. Of the 76 seizure events, 74 were correctly predicted, with only two patients experiencing missed detections. The mean sensitivity was calculated as 97.68\%, the FPR was 0.000/h in the majority of patients, with a mean FPR of 0.0232/h. The shortest prediction time recorded was 17.69 min, with a mean prediction time of 24.26 min.
+
+Segment-based and event-based tests on the SH-SDU database are displayed in Table 5 and Table 6, respectively. The segment-based test results showed that four patients achieved 100\% sensitivity with an average sensitivity of 97.45\%, and most patients had a specificity exceeding 90\% with an average specificity of 94.30\%. Accuracy was noted to be above 91\% in all patients and 100\% in one patient, and the method obtained an average accuracy of 95.88\% and an average F1 score of 0.9615. Notably, in the event-based test results, a single incorrect prediction occurred out of all 32 seizure events, with an average sensitivity of 97.92\%, an average FPR of 0.0208/h, and an average prediction time of 24.28 min. These results indicate that the method also achieves excellent results in the SH-SDU clinical database.
+
+\begin{table}[htbp]
+  \centering
+  \caption{The result of segment-based method on CHB-MIT database.}
+  \begin{tabular}{ccccc}
+    \toprule
+    Patient & Sensitivity (\%) & Specificity (\%) & Accuracy (\%) & F1 score \\
+    \midrule
+    Chb01 & 96.29 & 99.71 & 98.00 & 0.9780 \\
+    Chb02 & 99.33 & 98.00 & 98.67 & 0.9875 \\
+    Chb03 & 98.67 & 95.67 & 97.17 & 0.9731 \\
+    Chb04 & 100.00 & 98.67 & 99.33 & 0.9935 \\
+    Chb05 & 100.00 & 99.60 & 99.80 & 0.9980 \\
+    Chb06 & 95.40 & 88.00 & 91.70 & 0.9219 \\
+    Chb07 & 97.33 & 95.33 & 96.33 & 0.9642 \\
+    Chb08 & 100.00 & 100.00 & 100.00 & 1.0000 \\
+    Chb09 & 100.00 & 100.00 & 100.00 & 1.0000 \\
+    Chb10 & 98.00 & 93.43 & 95.71 & 0.9633 \\
+    Chb11 & 100.00 & 97.00 & 98.50 & 0.9861 \\
+    Chb12 & 92.57 & 91.14 & 91.86 & 0.9124 \\
+    Chb13 & 99.00 & 96.50 & 97.75 & 0.9782 \\
+    Chb14 & 94.67 & 97.67 & 96.17 & 0.9597 \\
+    Chb15 & 96.67 & 88.89 & 92.78 & 0.9317 \\
+    Chb16 & 100.00 & 100.00 & 100.00 & 1.0000 \\
+    Chb17 & 100.00 & 99.33 & 99.67 & 0.9968 \\
+    Chb18 & 97.00 & 96.50 & 96.75 & 0.9681 \\
+    Chb19 & 100.00 & 100.00 & 100.00 & 1.0000 \\
+    Chb20 & 96.33 & 99.00 & 97.67 & 0.9729 \\
+    Chb21 & 100.00 & 100.00 & 100.00 & 1.0000 \\
+    Chb22 & 98.67 & 94.67 & 96.67 & 0.9685 \\
+    Chb23 & 100.00 & 99.33 & 99.67 & 0.9968 \\
+    \bottomrule
+    Average & 98.26 & 96.89 & 97.57 & 0.9761 \\
+  \end{tabular}
+  \label{tab:chb-mit-segment-result}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{The result of event-based method on CHB-MIT database.}
+  \begin{tabular}{ccccc c}
+    \toprule
+    Patient & Number of training seizures & Number of testing seizures & Mean prediction time(min) & Sensitivity (\%) & FPR (/h) \\
+    \midrule
+    Chb01 & 1 & 6 & 23.73 & 100.00 & 0.0000 \\
+    Chb02 & 1 & 2 & 21.83 & 100.00 & 0.0000 \\
+    Chb03 & 3 & 3 & 25.93 & 100.00 & 0.0000 \\
+    Chb04 & 1 & 2 & 21.23 & 100.00 & 0.0000 \\
+    Chb05 & 1 & 4 & 25.73 & 100.00 & 0.0000 \\
+    Chb06 & 5 & 5 & 17.69 & 100.00 & 0.0000 \\
+    Chb07 & 1 & 2 & 27.53 & 100.00 & 0.0000 \\
+    Chb08 & 1 & 4 & 25.73 & 100.00 & 0.0000 \\
+    Chb09 & 1 & 3 & 25.73 & 100.00 & 0.0000 \\
+    Chb10 & 2 & 5 & 21.41 & 100.00 & 0.0000 \\
+    Chb11 & 1 & 1 & 25.73 & 100.00 & 0.0000 \\
+    Chb12 & 2 & 5 & 22.37 & 100.00 & 0.0000 \\
+    Chb13 & 1 & 3 & 28.73 & 66.67 & 0.3333 \\
+    Chb14 & 2 & 4 & 20.18 & 100.00 & 0.0000 \\
+    Chb15 & 4 & 5 & 22.73 & 80.00 & 0.2000 \\
+    Chb16 & 1 & 3 & 25.73 & 100.00 & 0.0000 \\
+    Chb17 & 1 & 2 & 25.73 & 100.00 & 0.0000 \\
+    Chb18 & 2 & 2 & 22.13 & 100.00 & 0.0000 \\
+    Chb19 & 1 & 1 & 25.73 & 100.00 & 0.0000 \\
+    Chb20 & 2 & 4 & 25.13 & 100.00 & 0.0000 \\
+    Chb21 & 1 & 3 & 25.73 & 100.00 & 0.0000 \\
+    Chb22 & 1 & 2 & 25.73 & 100.00 & 0.0000 \\
+    Chb23 & 1 & 5 & 25.73 & 100.00 & 0.0000 \\
+    \bottomrule
+    Average & $-$ & $-$ & 24.26 & 97.68 & 0.0232 \\
+  \end{tabular}
+  \label{tab:chb-mit-event-result}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{The result of segment-based method on SH-SDU database.}
+  \begin{tabular}{ccccc}
+    \toprule
+    Patient & Sensitivity (\%) & Specificity (\%) & Accuracy (\%) & F1 score \\
+    \midrule
+    1 & 95.00 & 98.50 & 96.75 & 0.9614 \\
+    2 & 100.00 & 83.00 & 91.50 & 0.9344 \\
+    3 & 95.50 & 92.50 & 94.00 & 0.9399 \\
+    4 & 99.60 & 82.80 & 91.20 & 0.9315 \\
+    5 & 97.00 & 100.00 & 98.50 & 0.9824 \\
+    6 & 98.00 & 99.33 & 98.67 & 0.9862 \\
+    7 & 100.00 & 99.00 & 99.50 & 0.9952 \\
+    8 & 94.67 & 88.00 & 91.33 & 0.9173 \\
+    9 & 93.00 & 96.50 & 94.75 & 0.9437 \\
+    10 & 100.00 & 100.00 & 100.00 & 1.0000 \\
+    11 & 96.67 & 93.00 & 94.83 & 0.9513 \\
+    12 & 100.00 & 99.00 & 99.50 & 0.9952 \\
+    \bottomrule
+    Average & 97.45 & 94.30 & 95.88 & 0.9615 \\
+  \end{tabular}
+  \label{tab:sh-sdu-segment-result}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{The result of event-based method on SH-SDU database.}
+  \begin{tabular}{ccccc c}
+    \toprule
+    Patient & Number of training seizures & Number of testing seizures & Mean prediction time(min) & Sensitivity (\%) & FPR (/h) \\
+    \midrule
+    1 & 2 & 3 & 25.73 & 100.00 & 0.0000 \\
+    2 & 1 & 5 & 25.37 & 100.00 & 0.0000 \\
+    3 & 1 & 4 & 24.53 & 100.00 & 0.0000 \\
+    4 & 2 & 3 & 25.13 & 100.00 & 0.0000 \\
+    5 & 1 & 1 & 25.73 & 100.00 & 0.0000 \\
+    6 & 1 & 2 & 24.23 & 100.00 & 0.0000 \\
+    7 & 1 & 1 & 25.73 & 100.00 & 0.0000 \\
+    8 & 2 & 4 & 24.53 & 75.00 & 0.2500 \\
+    9 & 1 & 3 & 20.33 & 100.00 & 0.0000 \\
+    10 & 1 & 2 & 25.73 & 100.00 & 0.0000 \\
+    11 & 2 & 4 & 25.13 & 100.00 & 0.0000 \\
+    12 & 1 & 1 & 19.13 & 100.00 & 0.0000 \\
+    \bottomrule
+    Average & $-$ & $-$ & 24.28 & 97.92 & 0.0208 \\
+  \end{tabular}
+  \label{tab:sh-sdu-event-result}
+\end{table}
+
+\section{Discussion}
+In this work, a novel method for predicting epileptic seizures is proposed by integrating the S-transform and MViT model. This marks the first exploration into seizure prediction methods using this combination. The S-transform possesses advantageous characteristics such as adjustable resolution, cross-band feature extraction, and robust noise performance, establishing its widespread use in time–frequency analysis and signal processing domains. The MViT model, despite its simplistic structure, can capture global information in images via attention mechanisms, thereby enabling the model to focus on critical parts of the input during the classification process.
+
+In this study, the time–frequency maps of multi-channel EEG signals were obtained by performing the S-transform on each channel separately. The traditional ViT models are primarily applied in the field of image recognition, where images are typically grayscale (1 channel) or color (3 channels). And those ViT models are not suitable for multi-channel EEG signals. Therefore, MViT is proposed by expanding the input channels to allow the model to process information from multiple EEG channels.
+
+To elucidate the advantages of the MViT model in classifying multi-channel EEG signals, we constructed a traditional single-channel 6-layer ViT model for comparison. For the time–frequency feature matrices extracted from multi-channel EEG signals, we compressed and summed them along the channel dimension before inputting into the ViT model, ensuring that the obtained time–frequency features contain information from all EEG channels. To ensure fairness in this comparison experiment, except for the differing network structures, all other hyperparameters were consistent. The results are shown in Table 7. By comparison, the MViT model achieved higher accuracy, specificity, sensitivity, and F1 score than ViT, with most evaluation metrics exceeding ViT by more than 10\%. In terms of model size, the complexity of the MViT model is higher than ViT because MViT has more input channels. Regarding computational time, testing 1 h of EEG data with the ViT model requires 0.0226 s, while MViT needs 0.0285 s. Overall, the MViT model outperforms ViT in handling multi-channel epileptic EEG data.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Performance comparison of ViT and MViT models.}
+  \begin{tabular}{cccccc}
+    \toprule
+    Method & Sensitivity (\%) & Specificity (\%) & Accuracy (\%) & F1 score & Testing time(s) & Parameters \\
+    \midrule
+    ViT & 88.99 & 80.84 & 84.92 & 0.8530 & 0.0226 & 38.4\% \\
+    MViT & 98.26 & 96.89 & 97.57 & 0.9761 & 0.0285 & 100\% \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:vit-mvit-comparison}
+\end{table}
+
+The Transformer Encoder is the fundamental structure of the MViT model. The number of network layers within the Encoder significantly influences the performance of the model. Extensive network layers can elevate the complexity and computational cost of the model and even instigate overfitting. Conversely, fewer network layers may culminate in poor classification due to the simplicity of the network structure. Therefore, MViT models with varying number of layers were constructed independently to explore the optimal number of model layers when this network is deployed for seizure prediction. Table 8 presents the average classification results based on segments for 2-layer, 4-layer, 6-layer, and 8-layer MViT models in the CHB-MIT database. Fig. 9 displays the accuracy for each layer of the network across the 23 patients. It can be observed that as the number of layers in the model increases, the classification performance improves. The optimal performance is attained at the 6-layer. However, when the network is extended to 8-layers, the model's performance diminishes and even falls short of the 2-layer network. This indicates that overfitting occurs when training with an 8-layer network. It is worth noting that our proposed method achieves excellent classification results using merely a 2-layer network, demonstrating the robustness of our proposed method for seizure prediction.
+
+\begin{table}[htbp]
+  \centering
+  \caption{The Average segment-based classification results by MViT model with layers 2, 4, 6 and 8 on the CHB-MIT database.}
+  \begin{tabular}{ccccc}
+    \toprule
+    Layer & Sensitivity (\%) & Specificity (\%) & Accuracy (\%) & F1 score \\
+    \midrule
+    2 & $97.35\pm3.46$ & $95.47\pm5.40$ & $96.41\pm4.07$ & $0.9648\pm0.040$ \\
+    4 & $97.69\pm3.02$ & $96.44\pm3.61$ & $97.06\pm3.13$ & $0.9709\pm0.031$ \\
+    6 & $98.26\pm2.07$ & $96.89\pm3.50$ & $97.57\pm2.53$ & $0.9761\pm0.025$ \\
+    8 & $97.02\pm3.96$ & $94.76\pm5.77$ & $95.89\pm4.59$ & $0.9601\pm0.045$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:mvit-layer-comparison}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig9.pdf}
+  \caption{The accuracies through MViT model with layers 2, 4, 6 and 8 for 23 patients.}
+  \label{fig:mvit-layer-accuracy}
+\end{figure}
+
+Table 9 summarizes the results of various automatic seizure prediction methods using the CHB-MIT database. Alotaiby et al. extracted common spatial pattern (CSP) features from EEG signals and used a linear discriminant classifier (LDA) for seizure prediction. Their method achieved 89.00\% sensitivity and FPR of 0.3900/h in event-based evaluation, which falls short of the performance achieved by our proposed method \cite{62}. Khan et al. implemented CWT to convert EEG signals into time–frequency features and used a CNN for classification, achieving 87.80\% sensitivity and 0.1470/h FPR in event-based evaluation \cite{63}. Truong et al. utilized STFT to derive time–frequency features from EEG signals and adopted a CNN to explore a method for seizure prediction, achieving 81.20\% sensitivity and 0.1600/h FPR \cite{64}. These two methods extracted time–frequency features from EEG signals using different approaches and utilized CNNs for classification. However, both methods used a relatively limited number of patients, lacked segment-based evaluation, and failed to achieve satisfactory results in event-based evaluation. Yang et al. utilized STFT for feature extraction and proposed a dual self-attention residual network (RDANet) for segment-based seizure prediction, achieving 89.33\% sensitivity, 93.02\% specificity, and 92.07\% accuracy. However, their method only included 13 patients and performed poorer than ours\cite{65}. Ryu et al. employed discrete wavelet transform (DWT) for feature extraction and combined dense convolutional network (DenseNet) and LSTM for seizure prediction, achieving 92.92\% sensitivity, 93.65\% specificity, 93.28\% accuracy, 0.9230 F1 score, and 0.063/h FPR. However, their method endorsed an overly complex network model with a relatively poorer performance \cite{66}. Dissanayake et al. employed geometric deep learning (GDL) for seizure prediction and achieved 94.47\% sensitivity, 94.16\% specificity and 95.38\% accuracy, but the performance was still inferior to our proposed method \cite{67}. Ding et al. used a combination of CNN and attention mechanism to predict seizures. Their method achieved a sensitivity of 86.81\%, specificity of 86.45\%, accuracy of 86.64\%, and F1 score of 0.8680, with a sensitivity of 99.45\% and FPR of 0.0348/h in the event-based assessment \cite{68}. Hellar et al. extracted embedded dynamic mode decomposition (EmDMD) from the EEG signals and then used RF as a classifier for epileptic seizure prediction, achieving 92.80\% sensitivity and 89.70\% specificity\cite{69}. Notably, comparing to our methodology, their method exhibited higher sensitivity in the event-based assessment, but had a higher FPR and poorer results in the segment-based assessment. Overall, our proposed method showed superior performance with better results than the other methods, indicating the great potential of our method for clinical applications.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Comparison of the performance for different methods on CHB-MIT dataset.}
+  \begin{tabular}{ccccccc}
+    \toprule
+    Author & Feature & \multicolumn{4}{c}{Segment-based} & \multicolumn{2}{c}{Event-based} \\
+    \cmidrule(lr){3-6} \cmidrule(lr){7-8}
+     &  & Sensitivity (\%) & Specificity (\%) & Accuracy (\%) & F1 score & Sensitivity (\%) & FPR (/h) \\
+    \midrule
+    Alotaiby et al. \cite{62} & CSP+LDA & $-$ & $-$ & $-$ & $-$ & 89.00 & 0.3900 \\
+    Yang et al. \cite{65} & STFT+RDANet & 89.33 & 93.02 & 92.07 & $-$ & $-$ & $-$ \\
+    Khan et al. \cite{63} & CWT+CNN & $-$ & $-$ & $-$ & $-$ & 87.80 & 0.1470 \\
+    Truong et al. \cite{64} & STFT+CNN & $-$ & $-$ & $-$ & $-$ & 81.20 & 0.1600 \\
+    Ryu et al. \cite{66} & DenseNet+LSTM & 92.92 & 93.65 & 93.28 & 0.9230 & $-$ & 0.063 \\
+    Dissanayake et al. \cite{67} & GDL & 94.47 & 94.16 & 95.38 & $-$ & $-$ & $-$ \\
+    Ding et al. \cite{68} & CNN+MHA & 86.81 & 86.45 & 86.64 & 0.8680 & 99.45 & 0.0348 \\
+    Hellar et al. \cite{69} & EmDMD+RF & 92.80 & 89.70 & $-$ & 0.9140 & $-$ & $-$ \\
+    This work & S-transform+MViT & 98.26 & 96.89 & 97.57 & 0.9761 & 97.68 & 0.0232 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:method-comparison}
+\end{table}
+
+\section{Conclusion}
+This study presents the first investigation to combine the S-transform with the MViT model for seizure prediction. As an integration of CWT and STFT, the S-transform is used to extract time–frequency features from raw EEG signals, which has excellent time–frequency representing ability and is able to effectively extract time–frequency information in noisy long-term EEG signals. The proposed MViT model, with a multi-headed self-attentive mechanism module, allows it to focus on salient regions of the input, thereby increasing the efficiency of the model utilization and ensuring notable results even in operations with a minimal number of network layers. This MViT model avoids the overfitting problem due to its lightweight network structure. For the performance evaluation, an event-based sensitivity of 97.68\%, an FPR of 0.023/h, and a prediction time of 24.26 min were achieved on the CHB-MIT database. Meanwhile, an event-based sensitivity of 97.92\%, an average prediction time of 24.28 min and an average FPR of 0.0208/h were yielded over the SH-SDU EEG database. The outcomes underscore the robust stability of the proposed method, the simplicity of its network structure, and its superior performance in seizure prediction, highlighting its potential suitability for future applications. In this study, the evaluation of the proposed model was conducted in patient-specific scenarios, and our future research direction will be focused on the execution of cross patient experiments.
+
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references} % 注：此处仅为格式占位，实际未包含参考文献内容
+\end{document}
