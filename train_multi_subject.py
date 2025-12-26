@@ -365,5 +365,153 @@ def main():
     print("=" * 60)
 
 
+def test_train():
+    """
+    测试训练模式 - 使用少量被试者快速验证训练流程
+    """
+    print("\n" + "=" * 60)
+    print("多被试者训练 - 测试模式")
+    print("=" * 60)
+    print("使用少量被试者和较少epoch快速验证训练流程")
+    print("=" * 60)
+
+    # 测试配置：使用少量被试者
+    test_train_subjects = cfg.TRAIN_SUBJECTS[:2]  # 前2个训练被试者
+    test_val_subjects = cfg.VAL_SUBJECTS[:1]      # 1个验证被试者
+    test_test_subjects = cfg.TEST_SUBJECTS[:1]    # 1个测试被试者
+    
+    test_epochs = 3  # 只训练3个epoch
+    test_patience = 2  # 早停耐心值
+    
+    print(f"\n测试配置:")
+    print(f"  - 训练被试者 ({len(test_train_subjects)}): {test_train_subjects}")
+    print(f"  - 验证被试者 ({len(test_val_subjects)}): {test_val_subjects}")
+    print(f"  - 测试被试者 ({len(test_test_subjects)}): {test_test_subjects}")
+    print(f"  - 训练轮数: {test_epochs}")
+    print(f"  - 数据平衡策略: {cfg.BALANCE_STRATEGY}")
+    
+    # 设置设备
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"\n使用设备: {device}")
+
+    # 创建测试输出目录
+    test_output_dir = os.path.join(cfg.OUTPUT_DIR, "test_multi_subject")
+    test_checkpoint_dir = os.path.join(test_output_dir, "checkpoints")
+    test_results_dir = os.path.join(test_output_dir, "results")
+    
+    os.makedirs(test_checkpoint_dir, exist_ok=True)
+    os.makedirs(test_results_dir, exist_ok=True)
+
+    try:
+        # 创建数据加载器
+        print("\n" + "=" * 60)
+        print("准备数据...")
+        print("=" * 60)
+
+        train_loader, val_loader, test_loader = create_subject_split_dataloaders(
+            train_subjects=test_train_subjects,
+            val_subjects=test_val_subjects,
+            test_subjects=test_test_subjects,
+            data_root=cfg.DATA_ROOT,
+            channels=cfg.CHANNEL_NAMES,
+            sampling_rate=cfg.SAMPLING_RATE,
+            filter_low=cfg.FILTER_LOW,
+            filter_high=cfg.FILTER_HIGH,
+            window_size=cfg.WINDOW_SIZE,
+            sop=cfg.SOP,
+            sph=cfg.SPH,
+            batch_size=cfg.BATCH_SIZE,
+            balance_strategy=cfg.BALANCE_STRATEGY,
+        )
+
+        # 创建模型
+        print("\n创建模型...")
+        model = MultiChannelViT(
+            n_channels=cfg.N_CHANNELS,
+            img_size=32,
+            patch_size=cfg.PATCH_SIZE,
+            embed_dim=cfg.EMBED_DIM,
+            num_layers=cfg.NUM_LAYERS,
+            num_heads=cfg.NUM_HEADS,
+            mlp_dim=cfg.MLP_DIM,
+            num_classes=cfg.NUM_CLASSES,
+            dropout=cfg.DROPOUT,
+        ).to(device)
+
+        print(f"模型参数量: {sum(p.numel() for p in model.parameters()):,}")
+
+        # 损失函数和优化器
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(
+            model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY
+        )
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", factor=0.5, patience=1
+        )
+
+        # 训练模型
+        print("\n开始测试训练...")
+        history, training_time = train_model(
+            model,
+            train_loader,
+            val_loader,
+            criterion,
+            optimizer,
+            scheduler,
+            device,
+            test_epochs,
+            test_patience,
+            test_checkpoint_dir,
+        )
+
+        # 加载最佳模型并测试
+        print("\n测试最佳模型...")
+        checkpoint_path = os.path.join(test_checkpoint_dir, "best_model_multi_subject.pth")
+        
+        if os.path.exists(checkpoint_path):
+            checkpoint = torch.load(checkpoint_path)
+            model.load_state_dict(checkpoint["model_state_dict"])
+            print("✓ 已加载最佳模型")
+        
+        # 在测试集上评估
+        test_loss, test_metrics, test_labels, test_preds, test_subject_ids = evaluate(
+            model, test_loader, criterion, device, return_predictions=True
+        )
+
+        print(f"\n测试集整体指标:")
+        print(f"  - Accuracy: {test_metrics['accuracy']:.4f}")
+        print(f"  - Sensitivity: {test_metrics['sensitivity']:.4f}")
+        print(f"  - Specificity: {test_metrics['specificity']:.4f}")
+        print(f"  - F1 Score: {test_metrics['f1_score']:.4f}")
+        
+        # 计算每个测试被试者的指标
+        per_subject_results = compute_per_subject_metrics(
+            test_labels, test_preds, test_subject_ids
+        )
+        
+        print(f"\n每个测试被试者的结果:")
+        for subject, metrics in sorted(per_subject_results.items()):
+            print(f"  {subject}: Acc={metrics['accuracy']:.4f}, F1={metrics['f1_score']:.4f}")
+
+        print("\n" + "=" * 60)
+        print("✓ 测试训练完成！")
+        print("=" * 60)
+        print(f"训练耗时: {training_time / 60:.2f} 分钟")
+        print(f"结果保存在: {test_output_dir}")
+        print("=" * 60)
+        print("\n提示: 运行完整训练请使用: python train_multi_subject.py")
+
+    except Exception as e:
+        print(f"\n✗ 测试训练失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    # 如果命令行参数包含 --test，运行测试模式
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        test_train()
+    else:
+        main()
