@@ -52,13 +52,14 @@ output/**/*.pth
 output/**/*.pt
 output/**/*.pkl
 
-# Data (数据集不上传)
-data/
+# Data (只忽略数据文件，不忽略代码)
 dataset/
 datasets/
 rawData/
 *.edf
 *.mat
+*.npy
+*.npz
 
 # Logs
 *.log
