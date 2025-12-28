@@ -19,26 +19,33 @@
 ```
 code_new/
 ├── config.py                       # 单被试者配置文件
-├── config_multi_subject.py         # 多被试者配置文件（新增）
+├── config_multi_subject.py         # 多被试者配置文件
 ├── train.py                        # 单被试者训练脚本
-├── train_multi_subject.py          # 多被试者训练脚本（新增）
-├── train_loso.py                   # LOSO交叉验证脚本（新增）
+├── train_multi_subject.py          # 多被试者训练脚本（跨被试者验证）
+├── train_all_subjects_mixed.py     # 混合训练脚本（所有被试者混合）✨新增
+├── train_loso.py                   # LOSO交叉验证脚本
 ├── data/
 │   ├── preprocessor.py            # 单被试者数据预处理
-│   └── multi_subject_preprocessor.py  # 多被试者数据预处理（新增）
+│   ├── multi_subject_preprocessor.py  # 多被试者数据预处理
+│   ├── cross_subject_normalization.py # 跨被试者标准化（可选）
+│   └── augmentation.py            # 数据增强（已禁用）
 ├── model/
 │   └── mvit.py                    # Multi-Channel ViT模型
 ├── utils/                         # 工具函数包
 │   ├── __init__.py
 │   ├── training_utils.py          # 训练工具函数
-│   └── cross_subject_utils.py     # 跨被试者评估工具（新增）
+│   └── cross_subject_utils.py     # 跨被试者评估工具
 ├── baseline/                       # baseline实验代码
 ├── doc/                           # 文档
+│   ├── OVERFITTING_FIX.md        # 过拟合问题分析与解决
+│   └── ...
 ├── output/                        # 输出目录（运行时生成）
 │   ├── checkpoints/              # 单被试者模型检查点
 │   ├── results/                  # 单被试者实验结果
-│   ├── multi_subject_results/    # 多被试者实验结果（新增）
-│   └── loso_results/             # LOSO交叉验证结果（新增）
+│   ├── multi_subject_results/    # 多被试者实验结果
+│   ├── all_subjects_mixed/       # 混合训练结果 ✨新增
+│   ├── test_mixed/               # 混合训练测试结果 ✨新增
+│   └── loso_results/             # LOSO交叉验证结果
 └── README.md                      # 本文件
 ```
 
@@ -84,9 +91,33 @@ DATA_ROOT = "D:/ML/chb-mit-scalp-eeg-database-1.0.0"  # 改为你的数据集路
 
 ### 3. 运行训练
 
+**单被试者训练：**
 ```bash
 python train.py
 ```
+
+**多被试者训练（跨被试者验证）：**
+```bash
+# 完整训练（15训练/4验证/5测试被试者）
+python train_multi_subject.py
+
+# 快速测试模式（仅用少量被试者验证代码）
+python train_multi_subject.py --test
+```
+
+**混合训练（所有被试者混合，随机划分）：**
+```bash
+# 完整训练（所有24个被试者混合，60/20/20随机划分）
+python train_all_subjects_mixed.py
+
+# 快速测试模式（仅用chb01快速验证，约2-3分钟）
+python train_all_subjects_mixed.py --test
+```
+
+**训练模式对比：**
+- **单被试者**：用于论文复现，针对特定患者
+- **跨被试者验证**：评估模型泛化能力（更严格，验证准确率~50%）
+- **混合训练**：追求最佳性能指标（验证准确率~90%+）
 
 训练过程包括：
 1. 加载EEG数据并应用滤波（0.5-48 Hz）
@@ -659,28 +690,61 @@ python baseline/癫痫前识别实验二.py
 
 ### 实验方案
 
-提供两种多被试者实验方案：
+提供三种多被试者实验方案：
 
-#### **方案1：被试者级别划分**
+#### **方案1：被试者级别划分（跨被试者验证）**
 - 文件：`train_multi_subject.py`
 - 配置：15个训练被试者 / 4个验证被试者 / 5个测试被试者
-- 特点：快速评估跨被试者性能（~1-2小时）
+- 特点：严格的跨被试者泛化评估（验证准确率~50%）
 - 输出：整体指标 + 每个测试被试者的详细报告
+- 训练时间：~1-2小时
 
-#### **方案2：LOSO交叉验证**
+#### **方案2：混合训练（追求最佳性能）** ✨推荐
+- 文件：`train_all_subjects_mixed.py`
+- 配置：所有24个被试者混合，60%/20%/20%随机划分
+- 特点：追求最佳性能指标（验证准确率~90%+）
+- 优化：延迟tensor转换，节省内存
+- 训练时间：~1.5-3小时（全量），~2-3分钟（测试模式）
+- **云端建议**：增加`batch_size`和`num_workers`以加速
+
+#### **方案3：LOSO交叉验证（最严格评估）**
 - 文件：`train_loso.py`
 - 配置：24折留一交叉验证（每个被试者轮流作测试集）
-- 特点：最严格的跨被试者评估（~12-24小时）
+- 特点：最严格的跨被试者评估
 - 输出：每折结果 + 汇总统计
+- 训练时间：~12-24小时
 
 ### 快速使用
 
 ```bash
-# 方案1：被试者级别划分（推荐先运行）
+# 方案1：跨被试者验证
 python train_multi_subject.py
+python train_multi_subject.py --test  # 快速测试
 
-# 方案2：LOSO交叉验证（需确认）
+# 方案2：混合训练（推荐）✨
+python train_all_subjects_mixed.py
+python train_all_subjects_mixed.py --test  # 快速测试（chb01，2-3分钟）
+
+# 方案3：LOSO交叉验证
 python train_loso.py
+```
+
+### 云端服务器优化建议
+
+在云端运行 `train_all_subjects_mixed.py` 时，建议修改以下参数以充分利用资源：
+
+```python
+# config.py
+DATA_ROOT = "/云端路径/chbmit/rawData"  # 修改数据路径
+
+# train_all_subjects_mixed.py (约318-320行)
+train_loader = DataLoader(
+    train_dataset, 
+    batch_size=64,           # 增大batch_size（默认32）
+    shuffle=True,
+    num_workers=8,           # 增加worker数量（默认无，建议4-8）
+    pin_memory=True          # GPU加速（建议开启）
+)
 ```
 
 ### 配置文件
