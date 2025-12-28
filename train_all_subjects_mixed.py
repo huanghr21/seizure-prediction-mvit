@@ -34,17 +34,19 @@ np.random.seed(42)
 
 
 class EEGDataset(Dataset):
-    """简单的EEG数据集"""
+    """简单的EEG数据集（延迟转换以节省内存）"""
 
     def __init__(self, data, labels):
-        self.data = torch.FloatTensor(data)
-        self.labels = torch.LongTensor(labels)
+        # 保持numpy格式，不一次性转换为tensor以节省内存
+        self.data = data
+        self.labels = labels
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+        # 只在取数据时转换为tensor
+        return torch.FloatTensor(self.data[idx]), torch.LongTensor([self.labels[idx]])[0]
 
 
 def train_epoch(model, train_loader, criterion, optimizer, device):
@@ -280,7 +282,7 @@ def main(test_mode=False):
         sop=cfg.SOP,
         sph=cfg.SPH,
         balance_strategy="global",  # 全局平衡
-        normalization="z-score",  # 跨被试者标准化
+        normalization=None,  # 混合训练不需要标准化
     )
 
     print(f"\n总数据量: {len(all_data)} 样本")
