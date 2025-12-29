@@ -321,9 +321,31 @@ def main(test_mode=False):
     val_dataset = EEGDataset(val_data, val_labels)
     test_dataset = EEGDataset(test_data, test_labels)
 
-    train_loader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE, shuffle=False)
+    # 优化的DataLoader参数（云端服务器可进一步调整batch_size和num_workers）
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=cfg.BATCH_SIZE, 
+        shuffle=True,
+        num_workers=cfg.NUM_WORKERS,
+        pin_memory=True,
+        persistent_workers=True
+    )
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=cfg.BATCH_SIZE, 
+        shuffle=False,
+        num_workers=cfg.NUM_WORKERS,
+        pin_memory=True,
+        persistent_workers=True
+    )
+    test_loader = DataLoader(
+        test_dataset, 
+        batch_size=cfg.BATCH_SIZE, 
+        shuffle=False,
+        num_workers=cfg.NUM_WORKERS,
+        pin_memory=True,
+        persistent_workers=True
+    )
 
     print("\n" + "=" * 60)
     print("数据加载器创建完成")

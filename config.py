@@ -6,7 +6,7 @@ import os
 
 # ============= 路径配置 =============
 # 数据集根目录（请根据实际情况修改）
-DATA_ROOT = "D:/dataset/chbmit/rawData"
+DATA_ROOT = "/root/local-nvme/datasets/chbmit/rawData"
 
 # 受试者选择
 SUBJECT = "chb12"
@@ -109,9 +109,9 @@ TEST_RATIO = 0.2  # 测试集比例
 RANDOM_SEED = 42  # 随机种子
 
 # 训练超参数
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 LEARNING_RATE = 1e-5  # 0.00001
-NUM_EPOCHS = 100  # 使用早停机制，设置较大上限让模型充分训练
+NUM_EPOCHS = 200  # 使用早停机制，设置较大上限让模型充分训练
 WEIGHT_DECAY = 1e-4
 
 # 优化器
@@ -124,13 +124,13 @@ SCHEDULER_FACTOR = 0.5
 
 # 早停
 USE_EARLY_STOPPING = True
-EARLY_STOPPING_PATIENCE = 10
+EARLY_STOPPING_PATIENCE = 25
 
 # ============= 设备配置 =============
 import torch
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-NUM_WORKERS = 4  # DataLoader的工作进程数
+NUM_WORKERS = 12  # DataLoader的工作进程数
 
 # ============= 其他配置 =============
 # 是否打印详细信息

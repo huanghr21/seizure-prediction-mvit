@@ -1,0 +1,25 @@
+{
+  "model": "MultiChannelViT",
+  "training_mode": "all_subjects_mixed",
+  "total_subjects": 24,
+  "train_size": 50580,
+  "val_size": 16860,
+  "test_size": 16860,
+  "training_time_minutes": 203.34173125823338,
+  "best_val_acc": 0.9406287069988137,
+  "test_metrics": {
+    "loss": 0.2973639326113643,
+    "accuracy": 0.9460260972716489,
+    "sensitivity": 0.9766310794780546,
+    "specificity": 0.9154211150652432,
+    "f1_score": 0.9476289134438306
+  },
+  "config": {
+    "dropout": 0.1,
+    "learning_rate": 1e-05,
+    "weight_decay": 0.0001,
+    "num_layers": 6,
+    "normalization": "z-score"
+  },
+  "timestamp": "2025-12-29 11:52:35"
+}
