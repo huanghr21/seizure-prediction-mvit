@@ -6,13 +6,6 @@
 
 本项目实现了基于Multi-Channel Vision Transformer (MViT)的癫痫发作预测方法，参考论文《Deep learning based automatic seizure prediction with EEG time-frequency representation》。通过简单修改配置文件，可以在不同受试者上进行实验。
 
-**核心特点：**
-- ✅ 使用S-transform进行时频分析
-- ✅ **参数共享的Multi-Channel ViT架构**（~620万参数）
-- ✅ 发作前30分钟到发作前3分钟的预测窗口（27分钟干预时间）
-- ✅ **三分法数据划分**：训练集(60%) / 验证集(20%) / 测试集(20%)
-- ✅ 数据自动平衡（Pre-ictal vs Inter-ictal）
-- ✅ **多受试者支持**：只需修改config.py即可切换受试者
 
 ## 📁 项目结构
 
